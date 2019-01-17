@@ -26,14 +26,14 @@ def dataframe(data, level_column, levels=None, variables=None, min_levels=3, kee
     DataFrame : interpolated DataFrame with new pressure levels
     """
     import pandas as pd
-    from . import message
-    from .. import config
+    from . import std_plevels
+    from .support import message
 
     if not isinstance(data, pd.DataFrame):
         raise ValueError()
 
     if levels is None:
-        levels = config.std_plevels
+        levels = std_plevels
 
     data.index.name = 'date'
 

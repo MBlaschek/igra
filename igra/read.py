@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
-import datetime
-import gzip
-import os
-import numpy as np
-import pandas as pd
-import xarray as xr
-from .support import message
 
-
-metadata = {'temp': {'units': 'K', 'standard_name': 'air_temperature'},
+_metadata = {'temp': {'units': 'K', 'standard_name': 'air_temperature'},
             'rhumi': {'units': '1', 'standard_name': 'relative_humidity'},
             'dpd': {'units': 'K', 'standard_name': 'dew_point_depression'},
             'windd': {'units': 'degree', 'standard_name': 'wind_to_direction'},
@@ -19,7 +11,7 @@ __all__ = ['igra', 'ascii_to_dataframe', 'metadata']
 
 
 def igra(ident, filename, variables=None, levels=None, **kwargs):
-
+    import xarray as xr
     if '.nc' in filename:
         data = xr.open_dataset(filename, **kwargs)
     else:
@@ -38,6 +30,9 @@ def igra(ident, filename, variables=None, levels=None, **kwargs):
 
 
 def to_std_levels(ident, filename, levels=None, **kwargs):
+    import numpy as np
+    import xarray as xr
+    from .support import message
     from . import era_plevels
     from .interp import dataframe
 
@@ -59,18 +54,19 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         new[ivar]['pres'].attrs.update({'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'})
         new[ivar]['date'].attrs.update({'axis': 'T'})
 
-        if ivar in metadata.keys():
+        if ivar in _metadata.keys():
             if 'dpd' in ivar:
                 if 'dewp' not in data.columns:
-                    attrs = metadata[ivar]
+                    attrs = _metadata[ivar]
                     attrs.update({'esat': 'FOEEWMO', 'rounded': 1})
                     new[ivar].attrs.update(attrs)
 
             else:
-                new[ivar].attrs.update(metadata[ivar])
+                new[ivar].attrs.update(_metadata[ivar])
 
     data = xr.Dataset(new)
-    data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG'})
+    data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
+                       'interpolated': 'to pres levs (#%d)' %len(levels)})
     data['temp'] += 273.15  # Kelvin
     data['rhumi'] /= 100.  # ratio
     station = station.reindex(np.unique(data.date.values))  # same dates as data
@@ -414,12 +410,28 @@ def ascii_to_dataframe(filename, **kwargs):
                     data remain at the same level.
             -9999 = Value missing prior to quality assurance.
     """
+    import datetime
+    import zipfile
+    import os
+    import io
+    import numpy as np
+    import pandas as pd
+
     if not os.path.isfile(filename):
         raise IOError("File not Found! %s" % filename)
 
-    with gzip.open(str(filename), 'rt', encoding='utf8') as infile:
-        tmp = infile.read()  # alternative readlines (slower)
+    if '.zip' in filename:
+        archive = zipfile.ZipFile(filename, 'r')
+        inside = archive.namelist()
+        tmp = archive.open(inside[0])
+        tmp = io.TextIOWrapper(tmp, encoding='utf-8')
+        tmp = tmp.read()
+        archive.close()
         data = tmp.splitlines()  # Memory (faster)
+    else:
+        with open(filename, 'rt') as infile:
+            tmp = infile.read()  # alternative readlines (slower)
+            data = tmp.splitlines()  # Memory (faster)
 
     raw = []
     headers = []
@@ -495,6 +507,7 @@ def metadata(filename):
     Returns:
         DataFrame
     """
+    import numpy as np
     import pandas as pd
     infos = """
     IGRAID         1- 11   Character

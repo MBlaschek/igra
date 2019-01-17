@@ -1,4 +1,3 @@
-
 __all__ = ['station', 'update', 'list', 'metadata']
 
 
@@ -7,8 +6,10 @@ def station(ident, directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    cmd = urllib.URLopener()
-    cmd.retrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-por/%s-data.txt.zip" % ident, directory + '/%s-data.txt.zip' % ident)
+    url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-por/%s-data.txt.zip" % ident
+    message(url, ' to ', directory + '/%s-data.txt.zip' % ident, verbose=1)
+
+    urllib.request.urlretrieve(url, directory + '/%s-data.txt.zip' % ident)
 
     if os.path.isfile(directory + '/%s-data.txt.zip' % ident):
         message("Downloaded: ", directory + '/%s-data.txt.zip' % ident, verbose=1)
@@ -21,11 +22,12 @@ def update(ident, directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    cmd = urllib.URLopener()
     # todo add wildcard for beg2018
-    cmd.retrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg2018.txt.zip" % ident, directory + '/%s-data-beg2018.txt.zip' % ident)
+    url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg2018.txt.zip" % ident
+    message(url, ' to ', directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
+    urllib.request.urlretrieve(url, directory + '/%s-data-beg2018.txt.zip' % ident)
 
-    if os.path.isfile(directory + '/%s-data.txt.zip' % ident):
+    if os.path.isfile(directory + '/%s-data-beg2018.txt.zip' % ident):
         message("Downloaded: ", directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
     else:
         message("File not found: ", directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
@@ -36,10 +38,11 @@ def list(directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    cmd = urllib.URLopener()
-    cmd.retrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-list.txt", directory + '/igra2-station-list.txt')
+    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-list.txt",
+                               filename=directory + '/igra2-station-list.txt')
 
     if os.path.isfile(directory + '/igra2-station-list.txt'):
+        message("Download complete, reading table ...")
         return _igralist(directory + '/igra2-station-list.txt')
     else:
         message("File not found: ", directory + '/igra2-station-list.txt', verbose=1)
@@ -50,8 +53,8 @@ def metadata(directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    cmd = urllib.URLopener()
-    cmd.retrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/history/igra2-metadata.txt", directory + '/igra2-metadata.txt')
+    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/history/igra2-metadata.txt",
+                               filename=directory + '/igra2-metadata.txt')
 
     if not os.path.isfile(directory + '/igra2-metadata.txt'):
         message("File not found: ", directory + '/igra2-metadata.txt', verbose=1)
