@@ -58,7 +58,7 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
             if 'dpd' in ivar:
                 if 'dewp' not in data.columns:
                     attrs = _metadata[ivar]
-                    attrs.update({'esat': 'FOEEWMO', 'rounded': 1})
+                    attrs.update({'esat': 'foeewmo', 'rounded': 1})
                     new[ivar].attrs.update(attrs)
 
             else:
@@ -493,16 +493,16 @@ def ascii_to_dataframe(filename, **kwargs):
 
 
 def metadata(filename):
-    """ Read IGRAv2 metadata file according to readme
+    """ Read IGRAv2 _metadata file according to readme
 
-    igra2-metadata-readme.txt
+    igra2-_metadata-readme.txt
 
     Documentation for IGRA Station History Information
     Accompanying IGRA Version 2.0.0b1
     August 2014
 
     Args:
-        filename (str):  igra2-metadata.txt
+        filename (str):  igra2-_metadata.txt
 
     Returns:
         DataFrame

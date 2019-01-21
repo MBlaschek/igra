@@ -53,13 +53,13 @@ def metadata(directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/history/igra2-metadata.txt",
-                               filename=directory + '/igra2-metadata.txt')
+    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/history/igra2-_metadata.txt",
+                               filename=directory + '/igra2-_metadata.txt')
 
-    if not os.path.isfile(directory + '/igra2-metadata.txt'):
-        message("File not found: ", directory + '/igra2-metadata.txt', verbose=1)
+    if not os.path.isfile(directory + '/igra2-_metadata.txt'):
+        message("File not found: ", directory + '/igra2-_metadata.txt', verbose=1)
     else:
-        message("Downloaded: ", directory + '/igra2-metadata.txt', verbose=1)
+        message("Downloaded: ", directory + '/igra2-_metadata.txt', verbose=1)
 
 
 def _igralist(filename):

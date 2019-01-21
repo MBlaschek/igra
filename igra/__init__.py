@@ -39,7 +39,7 @@ I. OVERVIEW
 This file provides guidance for how to navigate the FTP directory for
 IGRA v2beta, the beta release of version 2 of the Integrated Global
 Radiosonde Archive. It provides a brief overview of what is new in IGRA 2,
-step-by-step instructions for downloading desired Data and metadata,
+step-by-step instructions for downloading desired Data and _metadata,
 and an explanation of the contents of the directory and all of its subdirectories.
 The formats of the various types of files available are described in
 separate documents.
@@ -192,15 +192,15 @@ IGRA 1.
     future article.
 
   - Additional Station History Information:
-    1. The IGRA metadata file, which contains documented information about
+    1. The IGRA _metadata file, which contains documented information about
        the instrumentation and observing practices at many stations, has been
        augmented with additional records extracted from the Gaffen (1996)
-       collection that formed the basis for the original IGRA metadata.
+       collection that formed the basis for the original IGRA _metadata.
        The additional records are for nearly 700 IGRA 2 stations for
        which no Data was available in IGRA 1.
     2. To provide information on instrumentation used in recent years for which
        documented station history information is not available in the IGRA
-       IGRA metadata file, the WMO Radiosonde/sounding system and measuring
+       IGRA _metadata file, the WMO Radiosonde/sounding system and measuring
        equipment codes contained in Global Telecommunications System messages
        are also supplied in separate files for the years 2000-2013. Note that
        these codes have not been checked for accuracy and are provided
