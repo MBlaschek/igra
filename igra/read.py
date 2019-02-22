@@ -1,16 +1,30 @@
 # -*- coding: utf-8 -*-
 
 _metadata = {'temp': {'units': 'K', 'standard_name': 'air_temperature'},
-            'rhumi': {'units': '1', 'standard_name': 'relative_humidity'},
-            'dpd': {'units': 'K', 'standard_name': 'dew_point_depression'},
-            'windd': {'units': 'degree', 'standard_name': 'wind_to_direction'},
-            'winds': {'units': 'm/s', 'standard_name': 'wind_speed'}}
-
+             'rhumi': {'units': '1', 'standard_name': 'relative_humidity'},
+             'dpd': {'units': 'K', 'standard_name': 'dew_point_depression'},
+             'windd': {'units': 'degree', 'standard_name': 'wind_to_direction'},
+             'winds': {'units': 'm/s', 'standard_name': 'wind_speed'},
+             'lon': {'units': 'degrees_east', 'long_name': 'longitude'},
+             'lat': {'units': 'degrees_north', 'long_name': 'latitude'},
+             'alt': {'units': 'm', 'long_name': 'altitude_above_sea_level'}}
 
 __all__ = ['igra', 'ascii_to_dataframe', 'metadata']
 
 
 def igra(ident, filename, variables=None, levels=None, **kwargs):
+    """ Read IGRA station
+
+    Args:
+        ident (str): IGRA ID
+        filename (str): filename to read from
+        variables (list): select only these variables
+        levels (list): interpolate to these pressure levels [Pa]
+        **kwargs:
+
+    Returns:
+        Dataset : xarray Dataset
+    """
     import xarray as xr
     if '.nc' in filename:
         data = xr.open_dataset(filename, **kwargs)
@@ -30,6 +44,17 @@ def igra(ident, filename, variables=None, levels=None, **kwargs):
 
 
 def to_std_levels(ident, filename, levels=None, **kwargs):
+    """ Convert IGRA table data to xarray on std pressure levels
+
+    Args:
+        ident (str): IGRA ID
+        filename (str): filename to read
+        levels (list): pressure levels to interpolate to
+        **kwargs:
+
+    Returns:
+        Dataset : date x pres Arrays
+    """
     import numpy as np
     import xarray as xr
     from .support import message
@@ -66,12 +91,16 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
 
     data = xr.Dataset(new)
     data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
-                       'interpolated': 'to pres levs (#%d)' %len(levels)})
+                       'interpolated': 'to pres levs (#%d)' % len(levels)})
     data['temp'] += 273.15  # Kelvin
     data['rhumi'] /= 100.  # ratio
     station = station.reindex(np.unique(data.date.values))  # same dates as data
     station = station.fillna(method='ffill')  # fill Missing information with last known
     station = station.to_xarray()
+    for ivar in _metadata.keys():
+        if ivar in station.data_vars:
+            station[ivar].attrs.update(_metadata[ivar])
+
     for ivar, idata in station.data_vars.items():
         data[ivar] = idata
 
@@ -448,8 +477,8 @@ def ascii_to_dataframe(filename, **kwargs):
             numlev = int(line[32:36])
             p_src = line[37:45]
             np_src = line[46:54]
-            lat = int(line[55:62])/10000.
-            lon = int(line[63:71])/10000.
+            lat = int(line[55:62]) / 10000.
+            lon = int(line[63:71]) / 10000.
 
             if int(hour) == 99:
                 time = reltime + '00'
