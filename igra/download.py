@@ -22,7 +22,7 @@ def update(ident, directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    # todo add wildcard for beg2018
+    # todo add wildcard for beg2018 (probably every year, thus only at current year
     url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg2018.txt.zip" % ident
     message(url, ' to ', directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
     urllib.request.urlretrieve(url, directory + '/%s-data-beg2018.txt.zip' % ident)
