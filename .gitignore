@@ -1,0 +1,17 @@
+# .gitignore
+# Compiled python modules.
+*.pyc
+
+# Setuptools distribution folder.
+/dist/
+
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-sonde_info
+
+#
+.ipynb_checkpoints
+
+#
+rasoconfig_template.ini
+#
+*.tar.gz
