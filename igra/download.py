@@ -2,6 +2,13 @@ __all__ = ['station', 'update', 'list', 'metadata']
 
 
 def station(ident, directory):
+    """ Download IGRAv2 Station from NOAA
+
+    Args:
+        ident (str): IGRA ID
+        directory (str): output directory
+
+    """
     import urllib
     import os
     from .support import message
@@ -118,3 +125,63 @@ def _igralist(filename):
     out['name'] = out.name.str.strip()
     out = out.set_index('id')
     return out
+
+
+def uadb(ident, directory, email, pwd, **kwargs):
+    """ Download UADB TRHC Station from UCAR
+
+    Args:
+        ident (str): WMO ID
+        directory (str): output directory
+
+    """
+    import requests
+    import urllib
+    import os
+    from .support import message
+
+    os.makedirs(directory, exist_ok=True)
+    ident = str(int(ident))  # remove 00
+
+    url = 'https://rda.ucar.edu/cgi-bin/login'
+    values = {'email': email, 'passwd': pwd, 'action': 'login'}
+    # Authenticate
+    ret = requests.post(url, data=values)
+    if ret.status_code != 200:
+        print('Bad Authentication')
+        print(ret.text)
+        exit(1)
+
+    fileurl = "http://rda.ucar.edu/data/ds370.1/uadb_trhc_%s.txt" % ident
+    message(url, ' to ', directory + '/uadb_trhc_%s.txt' % ident, verbose=1)
+    try:
+        req = requests.get(fileurl, cookies=ret.cookies, allow_redirects=True, stream=True)
+        filesize = int(req.headers['Content-length'])
+        with open(directory + '/uadb_trhc_%s.txt' % ident, 'wb') as outfile:
+            chunk_size = 1048576
+            for chunk in req.iter_content(chunk_size=chunk_size):
+                outfile.write(chunk)
+                if chunk_size < filesize:
+                    _check_file_status(directory + '/uadb_trhc_%s.txt' % ident, filesize)
+
+        _check_file_status(directory + '/uadb_trhc_%s.txt' % ident, filesize)
+    except Exception as e:
+        print("Error: ", repr(e))
+        if kwargs.get('debug', False):
+            raise e
+        return
+
+    if os.path.isfile(directory + '/uadb_trhc_%s.txt' % ident):
+        message("\nDownloaded: ", directory + '/uadb_trhc_%s.txt' % ident, verbose=1)
+    else:
+        message("\nFile not found: ", directory + '/uadb_trhc_%s.txt' % ident, verbose=1)
+
+
+def _check_file_status(filepath, filesize):
+    import sys, os
+    sys.stdout.write('\r')
+    sys.stdout.flush()
+    size = int(os.stat(filepath).st_size)
+    percent_complete = (size / filesize) * 100
+    sys.stdout.write('%.3f %s' % (percent_complete, '% Completed'))
+    sys.stdout.flush()

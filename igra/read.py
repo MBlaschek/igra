@@ -5,11 +5,12 @@ _metadata = {'temp': {'units': 'K', 'standard_name': 'air_temperature'},
              'dpd': {'units': 'K', 'standard_name': 'dew_point_depression'},
              'windd': {'units': 'degree', 'standard_name': 'wind_to_direction'},
              'winds': {'units': 'm/s', 'standard_name': 'wind_speed'},
-             'lon': {'units': 'degrees_east', 'long_name': 'longitude'},
-             'lat': {'units': 'degrees_north', 'long_name': 'latitude'},
-             'alt': {'units': 'm', 'long_name': 'altitude_above_sea_level'}}
+             'lon': {'units': 'degrees_east', 'standard_name': 'longitude'},
+             'lat': {'units': 'degrees_north', 'standard_name': 'latitude'},
+             'alt': {'units': 'm', 'standard_name': 'altitude_above_sea_level'},
+             'gph': {'units': 'm', 'standard_name': 'geopotential_height'}}
 
-__all__ = ['igra', 'ascii_to_dataframe', 'metadata']
+__all__ = ['igra', 'ascii_to_dataframe', 'metadata', 'uadb_ascii_to_dataframe']
 
 
 def igra(ident, filename, variables=None, levels=None, **kwargs):
@@ -43,6 +44,37 @@ def igra(ident, filename, variables=None, levels=None, **kwargs):
     return data
 
 
+def uadb(ident, filename, variables=None, levels=None, **kwargs):
+    """ Read UADB station
+
+    Args:
+        ident (str): WMO ID
+        filename (str): filename to read from
+        variables (list): select only these variables
+        levels (list): interpolate to these pressure levels [Pa]
+        **kwargs:
+
+    Returns:
+        Dataset : xarray Dataset
+    """
+    import xarray as xr
+    if '.nc' in filename:
+        data = xr.open_dataset(filename, **kwargs)
+    else:
+        data = to_std_levels(ident, filename, levels=levels, uadb=True, **kwargs)
+
+    if variables is not None:
+        avail = list(data.data_vars.keys())
+        if not isinstance(variables, list):
+            variables = [variables]
+
+        variables = [iv for iv in variables if iv in avail]
+        if len(variables) > 0:
+            data = data[variables]  # subset
+
+    return data
+
+
 def to_std_levels(ident, filename, levels=None, **kwargs):
     """ Convert IGRA table data to xarray on std pressure levels
 
@@ -58,17 +90,24 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
     import numpy as np
     import xarray as xr
     from .support import message
-    from . import era_plevels
+    from . import era_plevels, std_plevels
     from .interp import dataframe
 
     if levels is None:
-        levels = era_plevels
+        levels = std_plevels
 
     # READ ASCII
-    data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
+    if kwargs.get('uabd', False):
+        data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
+    else:
+        data, station = uadb_ascii_to_dataframe(filename, **kwargs)  # Dataframe
+
     message(ident, levels, **kwargs)
     data = dataframe(data, 'pres', levels=levels, **kwargs)
-
+    # Convert pressure to gph
+    # ?
+    # Convert gph to pressure
+    # ?
     # Add Metadata
     new = {}
     for ivar in data.columns.tolist():
@@ -83,17 +122,25 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
             if 'dpd' in ivar:
                 if 'dewp' not in data.columns:
                     attrs = _metadata[ivar]
-                    attrs.update({'esat': 'foeewmo', 'rounded': 1})
+                    # attrs.update({'esat': 'foeewmo', 'rounded': 1})
                     new[ivar].attrs.update(attrs)
 
             else:
                 new[ivar].attrs.update(_metadata[ivar])
 
     data = xr.Dataset(new)
-    data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
-                       'interpolated': 'to pres levs (#%d)' % len(levels)})
+    if kwargs.get('uadb', False):
+        data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
+                           'interpolated': 'to pres levs (#%d)' % len(levels)})
+    else:
+        data.attrs.update({'ident': ident, 'source': 'NCAR RSA', 'dataset': 'UADB, ds370.1', 'processed': 'UNIVIE, IMG',
+                           'interpolated': 'to pres levs (#%d)' % len(levels)})
+
     data['temp'] += 273.15  # Kelvin
     data['rhumi'] /= 100.  # ratio
+
+    if station.index.duplicated().any():
+        station = station.reset_index().drop_duplicates('date', keep='last').set_index('date')
     station = station.reindex(np.unique(data.date.values))  # same dates as data
     station = station.fillna(method='ffill')  # fill Missing information with last known
     station = station.to_xarray()
@@ -538,6 +585,7 @@ def metadata(filename):
     """
     import numpy as np
     import pandas as pd
+
     infos = """
     IGRAID         1- 11   Character
     WMOID         13- 17   Integer
@@ -581,10 +629,13 @@ def metadata(filename):
         it = iline[22:].strip()
         if it == 'Character':
             it = 'str'
+
         elif it == 'Real':
             it = 'float'
+
         else:
             it = 'int'
+
         types[ih] = it
 
     data = pd.read_fwf(filename, colspecs=colspecs, header=None, dtype=types, names=header)
@@ -594,3 +645,127 @@ def metadata(filename):
                                    np.where(data.day.values == 99, 15, data.day.values) * 100 +
                                    np.where(data.hour.values == 99, 0, data.hour.values)).apply(str), format='%Y%m%d%H')
     return data
+
+
+def uadb_ascii_to_dataframe(filename, **kwargs):
+    """ NCAR Upper Air Database
+    This data is output from the NCAR Upper Air Database Project (UADB). The Composited
+    UADB products (UADB-TRH,UADB-Wind) and Combined (UADB-TRHC,UADB-WindC)
+    products have been output in this format. The output contains 1 descriptive header record (Table
+    C-1) for each sounding, followed by the data records (Table C-2) for that sounding, with 1 line
+    for each level. Note that each field in both the header and data records is separated by a space.
+
+    Documentation:
+        http://rda.ucar.edu/datasets/ds370.1/docs/uadb-format-ascii.pdf
+
+    Args:
+        filename (str): filename
+        **kwargs:
+
+    Returns:
+
+    """
+    import datetime
+    import zipfile
+    import os
+    import io
+    import numpy as np
+    import pandas as pd
+
+    if not os.path.isfile(filename):
+        raise IOError("File not Found! %s" % filename)
+
+    if '.zip' in filename:
+        archive = zipfile.ZipFile(filename, 'r')
+        inside = archive.namelist()
+        tmp = archive.open(inside[0])
+        tmp = io.TextIOWrapper(tmp, encoding='utf-8')
+        tmp = tmp.read()
+        archive.close()
+        data = tmp.splitlines()  # Memory (faster)
+    else:
+        with open(filename, 'rt') as infile:
+            tmp = infile.read()  # alternative readlines (slower)
+            data = tmp.splitlines()  # Memory (faster)
+
+    raw = []
+    headers = []
+    dates = []
+    nmiss = 0
+    iprev = 0
+    search_h = False
+    i = 0
+    for i, line in enumerate(data):
+        if line[0] == 'H':
+            try:
+                # Header
+                usi = int(line[2:14])  # unique station identifier
+                ident = line[15:21]  # WMO
+                idflag = int(line[22:24])  # id flag
+                d_src = int(line[25:28])  # source dataset
+                version = float(line[29:34])  # version
+                dateflag = int(line[35:37])  # date flag
+                year = line[38:42]  # year
+                month = "%02d" % int(line[43:45])
+                day = "%2d" % int(line[46:48])
+                hour = line[49:53]
+                locflag = int(line[54:56])  # Location Flag
+                lat = float(line[57:67])
+                lon = float(line[68:78])
+                ele = float(line[79:85])
+                stype = int(line[86:88])
+                numlev = int(line[89:93])
+                pvers = line[94:102]
+
+                # wired stuff !?
+                if '99' in hour:
+                    hour = hour.replace('99', '00')
+
+                if '99' in day:
+                    search_h = True
+                    continue
+
+                hour = "%02d" % (int(hour) // 100)
+                minutes = int(hour) % 100
+                if minutes > 60 or minutes < 0:
+                    minutes = 0
+                minutes = "%02d" % minutes
+                idate = datetime.datetime.strptime(year + month + day + hour + minutes, '%Y%m%d%H%M')
+                headers.append((idate, usi, numlev, lat, lon, ele, stype))
+                pday = int(day)
+                search_h = False
+
+            except Exception as e:
+                print("Error: ", i, line, repr(e), "Skipping Block:")
+                if kwargs.get('debug', False):
+                    raise e
+
+                search_h = True
+                iprev = i
+
+        elif search_h:
+            nmiss += 1
+            continue  # Skipping block
+
+        else:
+            # Data
+            ltyp = int(line[0:4])
+            press = float(line[5:13])  # hPa
+            gph = float(line[14:22])
+            temp = float(line[23:29])  # degree
+            rh = float(line[30:36])  # %
+            wdir = float(line[37:43])
+            wspd = float(line[44:50])  # m/s
+            raw.append((press, gph, temp, rh, wdir, wspd))
+            dates.append(idate)
+
+    print("READ:", i, "Skipped:", nmiss)
+
+    out = pd.DataFrame(data=raw, index=dates, columns=['pres', 'gph', 'temp', 'rhumi', 'windd', 'winds'])
+    out = out.replace([-999.9, -9999, -999, -999.0, -99999.0, -99999.9], np.nan)
+    # fix units
+    out['pres'] *= 100.  # need Pa
+    out.index.name = 'date'
+    headers = pd.DataFrame(data=headers, columns=['date', 'uid', 'numlev', 'lat', 'lon', 'alt', 'stype']).set_index(
+        'date')
+    return out, headers
