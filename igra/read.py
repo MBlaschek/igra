@@ -58,6 +58,7 @@ def uadb(ident, filename, variables=None, levels=None, **kwargs):
         Dataset : xarray Dataset
     """
     import xarray as xr
+
     if '.nc' in filename:
         data = xr.open_dataset(filename, **kwargs)
     else:
@@ -97,10 +98,10 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         levels = std_plevels
 
     # READ ASCII
-    if kwargs.get('uabd', False):
-        data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
-    else:
+    if kwargs.get('uadb', False):
         data, station = uadb_ascii_to_dataframe(filename, **kwargs)  # Dataframe
+    else:
+        data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
 
     message(ident, levels, **kwargs)
     data = dataframe(data, 'pres', levels=levels, **kwargs)
@@ -119,6 +120,7 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         new[ivar]['date'].attrs.update({'axis': 'T'})
 
         if ivar in _metadata.keys():
+
             if 'dpd' in ivar:
                 if 'dewp' not in data.columns:
                     attrs = _metadata[ivar]
@@ -130,10 +132,10 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
 
     data = xr.Dataset(new)
     if kwargs.get('uadb', False):
-        data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
+        data.attrs.update({'ident': ident, 'source': 'NCAR RSA', 'dataset': 'UADB, ds370.1', 'processed': 'UNIVIE, IMG',
                            'interpolated': 'to pres levs (#%d)' % len(levels)})
     else:
-        data.attrs.update({'ident': ident, 'source': 'NCAR RSA', 'dataset': 'UADB, ds370.1', 'processed': 'UNIVIE, IMG',
+        data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
                            'interpolated': 'to pres levs (#%d)' % len(levels)})
 
     data['temp'] += 273.15  # Kelvin
@@ -487,6 +489,7 @@ def ascii_to_dataframe(filename, **kwargs):
             -9999 = Value missing prior to quality assurance.
     """
     import datetime
+    import gzip
     import zipfile
     import os
     import io
@@ -504,6 +507,10 @@ def ascii_to_dataframe(filename, **kwargs):
         tmp = tmp.read()
         archive.close()
         data = tmp.splitlines()  # Memory (faster)
+    elif '.gz' in filename:
+        with gzip.open(filename, 'rt',  encoding='utf-8') as infile:
+            tmp = infile.read()  # alternative readlines (slower)
+            data = tmp.splitlines()  # Memory (faster)
     else:
         with open(filename, 'rt') as infile:
             tmp = infile.read()  # alternative readlines (slower)
@@ -559,6 +566,7 @@ def ascii_to_dataframe(filename, **kwargs):
             raw.append((press, gph, temp, rh, dpdp, wdir, wspd))
             dates.append(idate)
 
+    print("READ:", i)
     # columns=['ltyp1', 'ltyp2', 'etime', 'pres', 'pflag', 'gph', 'zflag', 'temp', 'tflag', 'rhumi',
     # 'dpd', 'windd', 'winds']
     out = pd.DataFrame(data=raw, index=dates, columns=['pres', 'gph', 'temp', 'rhumi', 'dpd', 'windd', 'winds'])
@@ -667,6 +675,7 @@ def uadb_ascii_to_dataframe(filename, **kwargs):
     """
     import datetime
     import zipfile
+    import gzip
     import os
     import io
     import numpy as np
@@ -683,6 +692,11 @@ def uadb_ascii_to_dataframe(filename, **kwargs):
         tmp = tmp.read()
         archive.close()
         data = tmp.splitlines()  # Memory (faster)
+    elif '.gz' in filename:
+
+        with gzip.open(filename, 'rt', encoding='utf-8') as infile:
+            tmp = infile.read()  # alternative readlines (slower)
+            data = tmp.splitlines()  # Memory (faster)
     else:
         with open(filename, 'rt') as infile:
             tmp = infile.read()  # alternative readlines (slower)
