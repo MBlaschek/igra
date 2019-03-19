@@ -1,4 +1,4 @@
-__all__ = ['station', 'update', 'list', 'metadata']
+__all__ = ['station', 'update', 'stationlist', 'metadata']
 
 
 def station(ident, directory):
@@ -24,35 +24,34 @@ def station(ident, directory):
         message("File not found: ", directory + '/%s-data.txt.zip' % ident, verbose=1)
 
 
-def update(ident, directory):
+def update(ident, directory, year='2019'):
     import urllib
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    # todo add wildcard for beg2018 (probably every year, thus only at current year
-    url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg2018.txt.zip" % ident
-    message(url, ' to ', directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
-    urllib.request.urlretrieve(url, directory + '/%s-data-beg2018.txt.zip' % ident)
+    url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg%s.txt.zip" % (ident, year)
+    message(url, ' to ', directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=1)
+    urllib.request.urlretrieve(url, directory + '/%s-data-beg%s.txt.zip' % (ident, year))
 
-    if os.path.isfile(directory + '/%s-data-beg2018.txt.zip' % ident):
-        message("Downloaded: ", directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
+    if os.path.isfile(directory + '/%s-data-beg%s.txt.zip' % (ident, year)):
+        message("Downloaded: ", directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=1)
     else:
-        message("File not found: ", directory + '/%s-data-beg2018.txt.zip' % ident, verbose=1)
+        message("File not found: ", directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=1)
 
 
-def list(directory):
+def stationlist(directory):
     import urllib
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-list.txt",
-                               filename=directory + '/igra2-station-list.txt')
+    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-stationlist.txt",
+                               filename=directory + '/igra2-station-stationlist.txt')
 
-    if os.path.isfile(directory + '/igra2-station-list.txt'):
+    if os.path.isfile(directory + '/igra2-station-stationlist.txt'):
         message("Download complete, reading table ...")
-        return _igralist(directory + '/igra2-station-list.txt')
+        return _igralist(directory + '/igra2-station-stationlist.txt')
     else:
-        message("File not found: ", directory + '/igra2-station-list.txt', verbose=1)
+        message("File not found: ", directory + '/igra2-station-stationlist.txt', verbose=1)
 
 
 def metadata(directory):
@@ -136,7 +135,6 @@ def uadb(ident, directory, email, pwd, **kwargs):
 
     """
     import requests
-    import urllib
     import os
     from .support import message
 

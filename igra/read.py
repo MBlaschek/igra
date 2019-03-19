@@ -220,7 +220,7 @@ def ascii_to_dataframe(filename, **kwargs):
     HEADREC		is the header record indicator (always set to "#").
 
     ID		is the station identification code. See "igra2-stations.txt"
-            for a complete list of stations and their names and locations.
+            for a complete stationlist of stations and their names and locations.
 
     YEAR 		is the year of the sounding.
 
@@ -337,14 +337,14 @@ def ascii_to_dataframe(filename, **kwargs):
     LAT 		is the Latitude at which the sounding was taken. For mobile
             stations, it is the latitude at the time of observation.
             For fixed stations, it is the same as the latitude shown
-            in the IGRA station list regardless of the date of the
+            in the IGRA station stationlist regardless of the date of the
             sounding since no attempt was made to reconstruct the
             sounding-by-sounding location history of these stations.
 
     LON 		is the longitude at which the sounding was taken. For mobile
             stations, it is the longitude at the time of observation.
             For fixed stations, it is the same as the longitude shown
-            in the IGRA station list regardless of the date of the
+            in the IGRA station stationlist regardless of the date of the
             sounding since no attempt was made to reconstruct the
             sounding-by-sounding location history of these stations.
 
