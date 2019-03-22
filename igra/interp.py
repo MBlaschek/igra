@@ -16,7 +16,7 @@ def dataframe(data, level_column, levels=None, variables=None, min_levels=3, kee
     Args:
         data (DataFrame):  Database with columns of non-uniform pressure levels
         level_column (str):  Database column with pressure levels
-        levels (stationlist, ndarray):  new pressure levels for interpolation
+        levels (list, ndarray):  new pressure levels for interpolation
         variables (list): Variables to interpolate
         min_levels (int): minimum required levels per profile for interpolation
         keep_old_levels (bool) : keep old levels in database ?

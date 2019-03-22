@@ -44,14 +44,14 @@ def stationlist(directory):
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-stationlist.txt",
-                               filename=directory + '/igra2-station-stationlist.txt')
+    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-list.txt",
+                               filename=directory + '/igra2-station-list.txt')
 
-    if os.path.isfile(directory + '/igra2-station-stationlist.txt'):
+    if os.path.isfile(directory + '/igra2-station-list.txt'):
         message("Download complete, reading table ...")
-        return _igralist(directory + '/igra2-station-stationlist.txt')
+        return _igralist(directory + '/igra2-station-list.txt')
     else:
-        message("File not found: ", directory + '/igra2-station-stationlist.txt', verbose=1)
+        message("File not found: ", directory + '/igra2-station-list.txt', verbose=1)
 
 
 def metadata(directory):
