@@ -91,7 +91,7 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
     import numpy as np
     import xarray as xr
     from .support import message
-    from . import era_plevels, std_plevels
+    from . import std_plevels
     from .interp import dataframe
 
     if levels is None:
@@ -104,11 +104,12 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
 
     message(ident, levels, **kwargs)
+    # Todo Convert pressure to gph
+    # ?
+    # todo Convert gph to pressure
+    # ?
+    # interpolation to standard pressure levels
     data = dataframe(data, 'pres', levels=levels, **kwargs)
-    # Convert pressure to gph
-    # ?
-    # Convert gph to pressure
-    # ?
     # Add Metadata
     new = {}
     for ivar in data.columns.tolist():
