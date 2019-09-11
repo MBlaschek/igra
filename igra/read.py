@@ -139,7 +139,7 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
                            'interpolated': 'to pres levs (#%d)' % len(levels)})
 
-    data['temp'] += 273.15  # Kelvin
+    data['temp'] += 273.2  # Kelvin
     data['rhumi'] /= 100.  # ratio
 
     if station.index.duplicated().any():
