@@ -109,6 +109,10 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
     # ?
     # interpolation to standard pressure levels
     data = dataframe(data, 'pres', levels=levels, **kwargs)
+    # Convert pressure to gph
+    # ?
+    # Convert gph to pressure
+    # ?
     # Add Metadata
     new = {}
     for ivar in data.columns.tolist():
