@@ -91,7 +91,7 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
     import numpy as np
     import xarray as xr
     from .support import message
-    from . import era_plevels, std_plevels
+    from . import std_plevels
     from .interp import dataframe
 
     if levels is None:
@@ -104,11 +104,11 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
 
     message(ident, levels, **kwargs)
+    # Todo Convert pressure to gph
+    # Todo Convert gph to pressure
+    # ?
+    # interpolation to standard pressure levels
     data = dataframe(data, 'pres', levels=levels, **kwargs)
-    # Convert pressure to gph
-    # ?
-    # Convert gph to pressure
-    # ?
     # Add Metadata
     new = {}
     for ivar in data.columns.tolist():
@@ -138,7 +138,7 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
                            'interpolated': 'to pres levs (#%d)' % len(levels)})
 
-    data['temp'] += 273.15  # Kelvin
+    data['temp'] += 273.2  # Kelvin
     data['rhumi'] /= 100.  # ratio
 
     if station.index.duplicated().any():
@@ -156,11 +156,22 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
     return data
 
 
-def ascii_to_dataframe(filename, **kwargs):
+# def ascii_to_odb(filename, **kwargs):
+#     # todo create netcdf odb dump like
+#     # convert to odb format
+#     import xarray as xr
+#     data, header = ascii_to_dataframe(filename=filename, **kwargs)
+#     # add metadata and put into an xarray
+#     # save as table with double indices
+#     pass
+
+
+def ascii_to_dataframe(filename, all_columns=False, **kwargs):
     """Read IGRA version 2 Data from NOAA
 
     Args:
         filename (str): Filename
+        all_columns (bool): return all columns or just data
 
     Returns:
         DataFrame : Table of radiosonde soundings with date as index and variables as columns
@@ -544,8 +555,10 @@ def ascii_to_dataframe(filename, **kwargs):
                 time = time.replace('99', '00')
 
             idate = datetime.datetime.strptime(year + month + day + time, '%Y%m%d%H%M%S')
-            # headers.append((idate, numlev, p_src.strip(), np_src.strip(), lat, lon))
-            headers.append((idate, numlev, lat, lon))
+            if all_columns:
+                headers.append((idate, numlev, p_src.strip(), np_src.strip(), lat, lon))
+            else:
+                headers.append((idate, numlev, lat, lon))
         else:
             # Data
             lvltyp1 = int(line[0])  # 1-  1   integer
@@ -562,17 +575,24 @@ def ascii_to_dataframe(filename, **kwargs):
             wdir = int(line[40:45])  # 41- 45   integer
             wspd = int(line[46:51]) / 10.  # 47- 51   integer
 
-            # raw.append((lvltyp1, lvltyp2, etime, press, pflag, gph, zflag, temp, tflag, rh, dpdp, wdir, wspd))
-            raw.append((press, gph, temp, rh, dpdp, wdir, wspd))
+            if all_columns:
+                raw.append((lvltyp1, lvltyp2, etime, press, pflag, gph, zflag, temp, tflag, rh, dpdp, wdir, wspd))
+            else:
+                raw.append((press, gph, temp, rh, dpdp, wdir, wspd))
             dates.append(idate)
 
     print("READ:", i)
-    # columns=['ltyp1', 'ltyp2', 'etime', 'pres', 'pflag', 'gph', 'zflag', 'temp', 'tflag', 'rhumi',
-    # 'dpd', 'windd', 'winds']
-    out = pd.DataFrame(data=raw, index=dates, columns=['pres', 'gph', 'temp', 'rhumi', 'dpd', 'windd', 'winds'])
-    out = out.replace([-999.9, -9999, -8888, -888.8], np.nan)
+    if all_columns:
+        c = ['ltyp1', 'ltyp2', 'etime', 'pres', 'pflag', 'gph', 'zflag', 'temp', 'tflag', 'rhumi', 'dpd', 'windd', 'winds']
+    else:
+        c = ['pres', 'gph', 'temp', 'rhumi', 'dpd', 'windd', 'winds']
+    out = pd.DataFrame(data=raw, index=dates, columns=c)
+    out = out.replace([-999.9, -9999, -8888, -888.8], np.nan)   # known missing values by IGRAv2
     out.index.name = 'date'
-    headers = pd.DataFrame(data=headers, columns=['date', 'numlev', 'lat', 'lon']).set_index('date')
+    if all_columns:
+        headers = pd.DataFrame(data=headers, columns=['date', 'numlev', 'p_src', 'np_src', 'lat', 'lon']).set_index('date')
+    else:
+        headers = pd.DataFrame(data=headers, columns=['date', 'numlev', 'lat', 'lon']).set_index('date')
     return out, headers
 
 
@@ -739,8 +759,9 @@ def uadb_ascii_to_dataframe(filename, **kwargs):
                     search_h = True
                     continue
 
-                hour = "%02d" % (int(hour) // 100)
                 minutes = int(hour) % 100
+                hour = "%02d" % (int(hour) // 100)
+
                 if minutes > 60 or minutes < 0:
                     minutes = 0
                 minutes = "%02d" % minutes
