@@ -8,12 +8,14 @@ _metadata = {'temp': {'units': 'K', 'standard_name': 'air_temperature'},
              'lon': {'units': 'degrees_east', 'standard_name': 'longitude'},
              'lat': {'units': 'degrees_north', 'standard_name': 'latitude'},
              'alt': {'units': 'm', 'standard_name': 'altitude_above_sea_level'},
-             'gph': {'units': 'm', 'standard_name': 'geopotential_height'}}
+             'gph': {'units': 'm', 'standard_name': 'geopotential_height'},
+             'pres': {'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'},
+             'flag_int': {'units': '1', 'standard_name': 'flag_interpolation', 'info': '0: raw, 1: interpolated'}}
 
 __all__ = ['igra', 'ascii_to_dataframe', 'metadata', 'uadb_ascii_to_dataframe']
 
 
-def igra(ident, filename, variables=None, levels=None, **kwargs):
+def igra(ident, filename, variables=None, levels=None, as_table=False, **kwargs):
     """ Read IGRA station
 
     Args:
@@ -21,6 +23,7 @@ def igra(ident, filename, variables=None, levels=None, **kwargs):
         filename (str): filename to read from
         variables (list): select only these variables
         levels (list): interpolate to these pressure levels [Pa]
+        as_table (bool): return odb like datatable
         **kwargs:
 
     Returns:
@@ -30,7 +33,7 @@ def igra(ident, filename, variables=None, levels=None, **kwargs):
     if '.nc' in filename:
         data = xr.open_dataset(filename, **kwargs)
     else:
-        data = to_std_levels(ident, filename, levels=levels, **kwargs)
+        data = to_std_levels(ident, filename, levels=levels, as_table=as_table, **kwargs)
 
     if variables is not None:
         avail = list(data.data_vars.keys())
@@ -44,7 +47,7 @@ def igra(ident, filename, variables=None, levels=None, **kwargs):
     return data
 
 
-def uadb(ident, filename, variables=None, levels=None, **kwargs):
+def uadb(ident, filename, variables=None, levels=None, as_table=False, **kwargs):
     """ Read UADB station
 
     Args:
@@ -52,6 +55,7 @@ def uadb(ident, filename, variables=None, levels=None, **kwargs):
         filename (str): filename to read from
         variables (list): select only these variables
         levels (list): interpolate to these pressure levels [Pa]
+        as_table (bool): return odb like datatable
         **kwargs:
 
     Returns:
@@ -62,7 +66,7 @@ def uadb(ident, filename, variables=None, levels=None, **kwargs):
     if '.nc' in filename:
         data = xr.open_dataset(filename, **kwargs)
     else:
-        data = to_std_levels(ident, filename, levels=levels, uadb=True, **kwargs)
+        data = to_std_levels(ident, filename, levels=levels, uadb=True, as_table=as_table, **kwargs)
 
     if variables is not None:
         avail = list(data.data_vars.keys())
@@ -76,13 +80,14 @@ def uadb(ident, filename, variables=None, levels=None, **kwargs):
     return data
 
 
-def to_std_levels(ident, filename, levels=None, **kwargs):
+def to_std_levels(ident, filename, levels=None, as_table=False, **kwargs):
     """ Convert IGRA table data to xarray on std pressure levels
 
     Args:
         ident (str): IGRA ID
         filename (str): filename to read
         levels (list): pressure levels to interpolate to
+        as_table (bool): keep data as table not array
         **kwargs:
 
     Returns:
@@ -106,31 +111,29 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
     message(ident, levels, **kwargs)
     # Todo Convert pressure to gph
     # Todo Convert gph to pressure
-    # ?
     # interpolation to standard pressure levels
     data = dataframe(data, 'pres', levels=levels, **kwargs)
-    # Convert pressure to gph
-    # ?
-    # Convert gph to pressure
-    # ?
     # Add Metadata
-    new = {}
+    if as_table:
+        new = data.to_xarray()
+    else:
+        new = {}
+
     for ivar in data.columns.tolist():
-        if ivar == 'pres':
-            continue
-        tmp = data.loc[:, ['pres', ivar]].reset_index().set_index(['date', 'pres']).to_xarray()  # 1D -> 2D
-        new[ivar] = tmp[ivar]
-        new[ivar]['pres'].attrs.update({'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'})
-        new[ivar]['date'].attrs.update({'axis': 'T'})
+        if not as_table:
+            if ivar == 'pres':
+                continue
+            tmp = data.loc[:, ['pres', ivar]].reset_index().set_index(['date', 'pres']).to_xarray()  # 1D -> 2D
+            new[ivar] = tmp[ivar]
+            new[ivar]['pres'].attrs.update({'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'})
+            new[ivar]['date'].attrs.update({'axis': 'T'})
 
         if ivar in _metadata.keys():
-
             if 'dpd' in ivar:
                 if 'dewp' not in data.columns:
                     attrs = _metadata[ivar]
                     # attrs.update({'esat': 'foeewmo', 'rounded': 1})
                     new[ivar].attrs.update(attrs)
-
             else:
                 new[ivar].attrs.update(_metadata[ivar])
 
@@ -144,12 +147,17 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
 
     data['temp'] += 273.2  # Kelvin
     data['rhumi'] /= 100.  # ratio
+    if as_table:
+        station = station.to_xarray().reindex(date=data.date)
 
-    if station.index.duplicated().any():
-        station = station.reset_index().drop_duplicates('date', keep='last').set_index('date')
-    station = station.reindex(np.unique(data.date.values))  # same dates as data
-    station = station.fillna(method='ffill')  # fill Missing information with last known
-    station = station.to_xarray()
+    else:
+        if station.index.duplicated().any():
+            station = station.reset_index().drop_duplicates('date', keep='last').set_index('date')
+
+        station = station.reindex(np.unique(data.date.values))  # same dates as data
+        station = station.fillna(method='ffill')  # fill Missing information with last known
+        station = station.to_xarray()
+
     for ivar in _metadata.keys():
         if ivar in station.data_vars:
             station[ivar].attrs.update(_metadata[ivar])
@@ -158,16 +166,6 @@ def to_std_levels(ident, filename, levels=None, **kwargs):
         data[ivar] = idata
 
     return data
-
-
-# def ascii_to_odb(filename, **kwargs):
-#     # todo create netcdf odb dump like
-#     # convert to odb format
-#     import xarray as xr
-#     data, header = ascii_to_dataframe(filename=filename, **kwargs)
-#     # add metadata and put into an xarray
-#     # save as table with double indices
-#     pass
 
 
 def ascii_to_dataframe(filename, all_columns=False, **kwargs):

@@ -8,5 +8,5 @@ setup(name='igra',
       author_email='michael.blaschek@univie.ac.at',
       license='UNIVIE GNU GPL',
       packages=['igra'],
-      install_requires=['numpy', 'pandas', 'xarray'],
+      install_requires=['datetime', 'zipfile', 'gzip', 'urllib', 'numpy', 'pandas', 'xarray'],
       zip_safe=False)
