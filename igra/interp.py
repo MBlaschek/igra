@@ -4,7 +4,7 @@
 __all__ = ['dataframe']
 
 
-def dataframe(data, level_column, levels=None, variables=None, keep_old_levels=False, **kwargs):
+def dataframe(data, level_column, levels=None, variables=None, keep_old_levels=True, **kwargs):
     """ Interpolate a database DataFrame according to pressure levels in level_column
 
     Interpolate:

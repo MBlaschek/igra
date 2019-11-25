@@ -94,50 +94,57 @@ def to_std_levels(ident, filename, levels=None, as_table=False, **kwargs):
         Dataset : date x pres Arrays
     """
     import numpy as np
-    import xarray as xr
-    from .support import message
+    from . import support as sp
     from . import std_plevels
     from .interp import dataframe
 
     if levels is None:
         levels = std_plevels
 
+    kwargs = sp.kw_handle(kwargs, mname=ident, adddate=True)
+    sp.message(ident, levels, **kwargs)
+
     # READ ASCII
+    sp.message("Reading ascii data into dataframes", **kwargs)
     if kwargs.get('uadb', False):
         data, station = uadb_ascii_to_dataframe(filename, **kwargs)  # Dataframe
     else:
         data, station = ascii_to_dataframe(filename, **kwargs)  # DataFrame
 
-    message(ident, levels, **kwargs)
+    #
+    # interpolation to standard pressure levels
+    #
     # Todo Convert pressure to gph
     # Todo Convert gph to pressure
-    # interpolation to standard pressure levels
-    data = dataframe(data, 'pres', levels=levels, **kwargs)
-    # Add Metadata
-    if as_table:
-        new = data.to_xarray()
+    pindex = np.isfinite(data['pres'])
+    sp.message("Missing pressure values", (~pindex).sum(), **kwargs)
+    sp.message("Interpolating to standard pressure levels", **kwargs)
+    data = dataframe(data[pindex], 'pres', levels=levels, **kwargs)
+    sp.message("Converting to xarray", **kwargs)
+    if not as_table:
+        # select only valid levels
+        data = data[data['pres'].isin(levels)]
+        # convert to xarray
+        data = data.reset_index().set_index(['date', 'pres'])
+        if not data.index.is_unique:
+            data = data.loc[~data.index.duplicated()]  # remove duplicated
+        data = data.to_xarray()  # 1D -> 2D
+        data['pres'].attrs.update({'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'})
+        data['date'].attrs.update({'axis': 'T'})
     else:
-        new = {}
+        data = data.to_xarray()
 
-    for ivar in data.columns.tolist():
-        if not as_table:
-            if ivar == 'pres':
-                continue
-            tmp = data.loc[:, ['pres', ivar]].reset_index().set_index(['date', 'pres']).to_xarray()  # 1D -> 2D
-            new[ivar] = tmp[ivar]
-            new[ivar]['pres'].attrs.update({'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'})
-            new[ivar]['date'].attrs.update({'axis': 'T'})
-
+    sp.message("Adding Metadata", **kwargs)
+    for ivar in list(data.data_vars):
         if ivar in _metadata.keys():
             if 'dpd' in ivar:
-                if 'dewp' not in data.columns:
+                if 'dewp' not in data.data_vars:
                     attrs = _metadata[ivar]
                     # attrs.update({'esat': 'foeewmo', 'rounded': 1})
-                    new[ivar].attrs.update(attrs)
+                    data[ivar].attrs.update(attrs)
             else:
-                new[ivar].attrs.update(_metadata[ivar])
+                data[ivar].attrs.update(_metadata[ivar])
 
-    data = xr.Dataset(new)
     if kwargs.get('uadb', False):
         data.attrs.update({'ident': ident, 'source': 'NCAR RSA', 'dataset': 'UADB, ds370.1', 'processed': 'UNIVIE, IMG',
                            'interpolated': 'to pres levs (#%d)' % len(levels)})
@@ -145,6 +152,7 @@ def to_std_levels(ident, filename, levels=None, as_table=False, **kwargs):
         data.attrs.update({'ident': ident, 'source': 'NOAA NCDC', 'dataset': 'IGRAv2', 'processed': 'UNIVIE, IMG',
                            'interpolated': 'to pres levs (#%d)' % len(levels)})
 
+    sp.message("Converting temperature and humidity", **kwargs)
     data['temp'] += 273.2  # Kelvin
     data['rhumi'] /= 100.  # ratio
     if as_table:
@@ -158,6 +166,7 @@ def to_std_levels(ident, filename, levels=None, as_table=False, **kwargs):
         station = station.fillna(method='ffill')  # fill Missing information with last known
         station = station.to_xarray()
 
+    sp.message("Collecting Station information", **kwargs)
     for ivar in _metadata.keys():
         if ivar in station.data_vars:
             station[ivar].attrs.update(_metadata[ivar])
@@ -508,6 +517,7 @@ def ascii_to_dataframe(filename, all_columns=False, **kwargs):
     import io
     import numpy as np
     import pandas as pd
+    from . import support as sp
 
     if not os.path.isfile(filename):
         raise IOError("File not Found! %s" % filename)
@@ -521,7 +531,7 @@ def ascii_to_dataframe(filename, all_columns=False, **kwargs):
         archive.close()
         data = tmp.splitlines()  # Memory (faster)
     elif '.gz' in filename:
-        with gzip.open(filename, 'rt',  encoding='utf-8') as infile:
+        with gzip.open(filename, 'rt', encoding='utf-8') as infile:
             tmp = infile.read()  # alternative readlines (slower)
             data = tmp.splitlines()  # Memory (faster)
     else:
@@ -583,16 +593,18 @@ def ascii_to_dataframe(filename, all_columns=False, **kwargs):
                 raw.append((press, gph, temp, rh, dpdp, wdir, wspd))
             dates.append(idate)
 
-    print("READ:", i)
+    sp.message("IGRAv2 Lines read:", i, "Header count:", len(headers), **kwargs)
     if all_columns:
-        c = ['ltyp1', 'ltyp2', 'etime', 'pres', 'pflag', 'gph', 'zflag', 'temp', 'tflag', 'rhumi', 'dpd', 'windd', 'winds']
+        c = ['ltyp1', 'ltyp2', 'etime', 'pres', 'pflag', 'gph', 'zflag', 'temp', 'tflag', 'rhumi', 'dpd', 'windd',
+             'winds']
     else:
         c = ['pres', 'gph', 'temp', 'rhumi', 'dpd', 'windd', 'winds']
     out = pd.DataFrame(data=raw, index=dates, columns=c)
-    out = out.replace([-999.9, -9999, -8888, -888.8], np.nan)   # known missing values by IGRAv2
+    out = out.replace([-999.9, -9999, -8888, -888.8], np.nan)  # known missing values by IGRAv2
     out.index.name = 'date'
     if all_columns:
-        headers = pd.DataFrame(data=headers, columns=['date', 'numlev', 'p_src', 'np_src', 'lat', 'lon']).set_index('date')
+        headers = pd.DataFrame(data=headers, columns=['date', 'numlev', 'p_src', 'np_src', 'lat', 'lon']).set_index(
+            'date')
     else:
         headers = pd.DataFrame(data=headers, columns=['date', 'numlev', 'lat', 'lon']).set_index('date')
     return out, headers
@@ -702,6 +714,7 @@ def uadb_ascii_to_dataframe(filename, **kwargs):
     import io
     import numpy as np
     import pandas as pd
+    from . import support as sp
 
     if not os.path.isfile(filename):
         raise IOError("File not Found! %s" % filename)
@@ -796,7 +809,7 @@ def uadb_ascii_to_dataframe(filename, **kwargs):
             raw.append((press, gph, temp, rh, wdir, wspd))
             dates.append(idate)
 
-    print("READ:", i, "Skipped:", nmiss)
+    sp.message("UADB Lines read:", i, "skipped:", nmiss, "Header:", len(headers), **kwargs)
 
     out = pd.DataFrame(data=raw, index=dates, columns=['pres', 'gph', 'temp', 'rhumi', 'windd', 'winds'])
     out = out.replace([-999.9, -9999, -999, -999.0, -99999.0, -99999.9], np.nan)
