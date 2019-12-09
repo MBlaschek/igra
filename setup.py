@@ -7,6 +7,8 @@ setuptools.setup(
       name='igra',
       version='19.12',
       description='IGRAv2 radiosonde tools',
+      long_description=long_description,
+      long_description_content_type="text/markdown",
       url='https://github.com/MBlaschek/igra',
       author='MB',
       author_email='michael.blaschek@univie.ac.at',

@@ -12,7 +12,7 @@ _metadata = {'temp': {'units': 'K', 'standard_name': 'air_temperature'},
              'pres': {'units': 'Pa', 'standard_name': 'air_pressure', 'axis': 'Z'},
              'flag_int': {'units': '1', 'standard_name': 'flag_interpolation', 'info': '0: raw, 1: interpolated'}}
 
-__all__ = ['igra', 'ascii_to_dataframe', 'metadata', 'uadb_ascii_to_dataframe']
+__all__ = ['igra', 'uadb', 'ascii_to_dataframe', 'metadata', 'stationlist', 'uadb_ascii_to_dataframe']
 
 
 def igra(ident, filename, variables=None, levels=None, return_table=False, **kwargs):
@@ -628,34 +628,33 @@ def metadata(filename):
     import numpy as np
     import pandas as pd
 
-    infos = """
-    IGRAID         1- 11   Character
-    WMOID         13- 17   Integer
-    NAME          19- 48   Character
-    NAMFLAG       50- 50   Character
-    LATITUDE      52- 60   Real
-    LATFLAG       62- 62   Character
-    LONGITUDE     64- 72   Real
-    LONFLAG       74- 74   Character
-    ELEVATION     76- 81   Real
-    ELVFLAG       83- 83   Character
-    YEAR          85- 88   Integer
-    MONTH         90- 91   Integer
-    DAY           93- 94   Integer
-    HOUR          96- 97   Integer
-    DATEIND       99- 99   Integer
-    EVENT        101-119   Character
-    ALTIND       121-122   Character
-    BEFINFO      124-163   Character
-    BEFFLAG      164-164   Character
-    LINK         166-167   Character
-    AFTINFO      169-208   Character
-    AFTFLAG      209-209   Character
-    REFERENCE    211-235   Character
-    COMMENT      236-315   Character
-    UPDCOM       316-346   Character
-    UPDDATE      348-354   Character
-    """
+    infos = """IGRAID         1- 11   Character
+WMOID         13- 17   Integer
+NAME          19- 48   Character
+NAMFLAG       50- 50   Character
+LATITUDE      52- 60   Real
+LATFLAG       62- 62   Character
+LONGITUDE     64- 72   Real
+LONFLAG       74- 74   Character
+ELEVATION     76- 81   Real
+ELVFLAG       83- 83   Character
+YEAR          85- 88   Integer
+MONTH         90- 91   Integer
+DAY           93- 94   Integer
+HOUR          96- 97   Integer
+DATEIND       99- 99   Integer
+EVENT        101-119   Character
+ALTIND       121-122   Character
+BEFINFO      124-163   Character
+BEFFLAG      164-164   Character
+LINK         166-167   Character
+AFTINFO      169-208   Character
+AFTFLAG      209-209   Character
+REFERENCE    211-235   Character
+COMMENT      236-315   Character
+UPDCOM       316-346   Character
+UPDDATE      348-354   Character
+"""
 
     colspecs = []
     header = []
@@ -687,6 +686,61 @@ def metadata(filename):
                                    np.where(data.day.values == 99, 15, data.day.values) * 100 +
                                    np.where(data.hour.values == 99, 0, data.hour.values)).apply(str), format='%Y%m%d%H')
     return data
+
+
+def stationlist(filename, verbose=1):
+    """ Read IGRAv2 station list
+
+    Args:
+        filename (str): filename of station list
+        verbose (inr): verboseness
+
+    Returns:
+        DataFrame : station informations
+    """
+    from .support import message
+    import numpy as np
+    import pandas as pd
+
+    try:
+        infile = open(filename)
+        tmp = infile.read()
+        data = tmp.splitlines()
+        message("Data read from:", filename, verbose=verbose)
+    except IOError as e:
+        message("File not found: " + filename, verbose=verbose)
+        raise e
+    else:
+        infile.close()
+
+    out = pd.DataFrame(columns=['id', 'wmo', 'lat', 'lon', 'alt', 'state', 'name', 'start', 'end', 'total'])
+
+    for i, line in enumerate(data):
+        id = line[0:11]
+
+        try:
+            id2 = "%06d" % int(line[5:11])  # substring
+
+        except ValueError:
+            id2 = ""
+
+        lat = float(line[12:20])
+        lon = float(line[21:30])
+        alt = float(line[31:37])
+        state = line[38:40]
+        name = line[41:71]
+        start = int(line[72:76])
+        end = int(line[77:81])
+        count = int(line[82:88])
+        out.loc[i] = (id, id2, lat, lon, alt, state, name, start, end, count)
+
+    message("Data processed", i, verbose=verbose)
+    out.loc[out.lon <= -998.8, 'lon'] = np.nan  # repalce missing values
+    out.loc[out.alt <= -998.8, 'alt'] = np.nan  # repalce missing values
+    out.loc[out.lat <= -98.8, 'lat'] = np.nan  # replace missing values
+    out['name'] = out.name.str.strip()
+    out = out.set_index('id')
+    return out
 
 
 def uadb_ascii_to_dataframe(filename, **kwargs):
