@@ -72,5 +72,8 @@ class InterpTest(unittest.TestCase):
     def test_interpolation(self):
         pass
 
+
 if __name__ == '__main__':
     unittest.main()
+    if os.path.isdir(tmpdir):
+        os.removedirs(tmpdir)
