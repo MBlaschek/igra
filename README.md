@@ -1,4 +1,7 @@
+[![PyPI version](https://badge.fury.io/py/igra.svg)](https://badge.fury.io/py/igra)
+
 # IGRA
+
 Author: M. Blaschek
 Date: Dezember 2019
 

@@ -23,7 +23,7 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Atmospheric Science",
     ],
     packages=setuptools.find_packages(),
-    install_requires=['urllib3', 'numpy', 'pandas', 'xarray'],
+    install_requires=['requests', 'numpy', 'pandas', 'xarray'],
     python_requires='>=3.6'
 )
 
