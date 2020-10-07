@@ -15,3 +15,5 @@
 rasoconfig_template.ini
 #
 *.tar.gz
+/build/lib/igra/
+/igra.egg-info/

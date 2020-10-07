@@ -1,5 +1,5 @@
 
-__all__ = ['now', 'message']
+__all__ = ['now', 'message', 'kw_handle']
 
 
 def now():
@@ -33,3 +33,14 @@ def _print_string(*args, adddate=False, **kwargs):
         return "[" + now() + "] " + " ".join([str(i) for i in args])
     else:
         return " ".join([str(i) for i in args])
+
+
+def kw_handle(kw, update=False, **kwargs):
+    for ikey, ival in kwargs.items():
+        if ikey not in kw.keys():
+            kw[ikey] = ival
+        elif update:
+            kw[ikey] = ival
+        else:
+            pass
+    return kw

@@ -1,138 +1,113 @@
 __all__ = ['station', 'update', 'stationlist', 'metadata']
 
 
-def station(ident, directory):
+def station(ident, directory, server=None, verbose=1):
     """ Download IGRAv2 Station from NOAA
 
     Args:
         ident (str): IGRA ID
         directory (str): output directory
+        server (str): download url
+        verbose (int): verboseness
 
     """
     import urllib
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-por/%s-data.txt.zip" % ident
-    message(url, ' to ', directory + '/%s-data.txt.zip' % ident, verbose=1)
+    if server is None:
+        server = 'https://www1.ncdc.noaa.gov/pub/data/igra/data/data-por/'
+    url = "%s/%s-data.txt.zip" % (server, ident)
+    message(url, ' to ', directory + '/%s-data.txt.zip' % ident, verbose=verbose)
 
     urllib.request.urlretrieve(url, directory + '/%s-data.txt.zip' % ident)
 
     if os.path.isfile(directory + '/%s-data.txt.zip' % ident):
-        message("Downloaded: ", directory + '/%s-data.txt.zip' % ident, verbose=1)
+        message("Downloaded: ", directory + '/%s-data.txt.zip' % ident, verbose=verbose)
     else:
-        message("File not found: ", directory + '/%s-data.txt.zip' % ident, verbose=1)
+        message("File not found: ", directory + '/%s-data.txt.zip' % ident, verbose=verbose)
 
 
-def update(ident, directory, year='2019'):
+def update(ident, directory, year='2018', verbose=1):
+    """ Download an update from the IGRAv2 archive (data-2yd)
+    Usually there is an updated file from the running year(e.g. 2019, then 2018 should be given)
+
+    Args:
+        ident (str): IGRA id
+        directory (str): update directory
+        year (str): year string
+        verbose (int): verbosness
+
+    """
     import urllib
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    url = "ftp://ftp.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg%s.txt.zip" % (ident, year)
-    message(url, ' to ', directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=1)
+    url = "https://www1.ncdc.noaa.gov/pub/data/igra/data/data-y2d/%s-data-beg%s.txt.zip" % (ident, year)
+    message(url, ' to ', directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=verbose)
     urllib.request.urlretrieve(url, directory + '/%s-data-beg%s.txt.zip' % (ident, year))
 
     if os.path.isfile(directory + '/%s-data-beg%s.txt.zip' % (ident, year)):
-        message("Downloaded: ", directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=1)
+        message("Downloaded: ", directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=verbose)
     else:
-        message("File not found: ", directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=1)
+        message("File not found: ", directory + '/%s-data-beg%s.txt.zip' % (ident, year), verbose=verbose)
 
 
-def stationlist(directory):
+def stationlist(directory, verbose=1):
+    """ Download the IGRAv2 station list
+
+    Args:
+        directory (str): save directory for the raw list
+        verbose (int): verbosness
+
+    Returns:
+        DataFrame : station informations
+    """
     import urllib
     import os
     from .support import message
+    from .read import stationlist as read_list
     os.makedirs(directory, exist_ok=True)
-    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/igra2-station-list.txt",
+    urllib.request.urlretrieve("https://www1.ncdc.noaa.gov/pub/data/igra/igra2-station-list.txt",
                                filename=directory + '/igra2-station-list.txt')
 
     if os.path.isfile(directory + '/igra2-station-list.txt'):
-        message("Download complete, reading table ...")
-        return _igralist(directory + '/igra2-station-list.txt')
+        message("Download complete, reading table ...", verbose=verbose)
+        return read_list(directory + '/igra2-station-list.txt', verbose=verbose)
     else:
-        message("File not found: ", directory + '/igra2-station-list.txt', verbose=1)
+        message("File not found: ", directory + '/igra2-station-list.txt', verbose=verbose)
 
 
-def metadata(directory):
+def metadata(directory, verbose=1):
+    """ Download IGRAv2 meta information on radiosonde changes
+
+    Args:
+        directory (str): save directory
+        verbose (int): verboseness
+
+    """
     import urllib
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
-    urllib.request.urlretrieve("ftp://ftp.ncdc.noaa.gov/pub/data/igra/history/igra2-_metadata.txt",
-                               filename=directory + '/igra2-_metadata.txt')
+    urllib.request.urlretrieve("https://www1.ncdc.noaa.gov/pub/data/igra/history/igra2-metadata.txt",
+                               filename=directory + '/igra2-metadata.txt')
 
-    if not os.path.isfile(directory + '/igra2-_metadata.txt'):
-        message("File not found: ", directory + '/igra2-_metadata.txt', verbose=1)
+    if not os.path.isfile(directory + '/igra2-metadata.txt'):
+        message("File not found: ", directory + '/igra2-metadata.txt', verbose=verbose)
     else:
-        message("Downloaded: ", directory + '/igra2-_metadata.txt', verbose=1)
+        message("Downloaded: ", directory + '/igra2-metadata.txt', verbose=verbose)
 
 
-def _igralist(filename):
-    """Read IGRA Radiosondelist
-
-    or download
-
-    Parameters
-    ----------
-    new         bool
-    filename    str
-    verbose     int
-
-    Returns
-    -------
-    DataFrame
-    """
-    import numpy as np
-    import pandas as pd
-
-    try:
-        infile = open(filename)
-        tmp = infile.read()
-        data = tmp.splitlines()
-
-    except IOError as e:
-        print("File not found: " + filename)
-        raise e
-    else:
-        infile.close()
-
-    out = pd.DataFrame(columns=['id', 'wmo', 'lat', 'lon', 'alt', 'state', 'name', 'start', 'end', 'total'])
-
-    for i, line in enumerate(data):
-        id = line[0:11]
-
-        try:
-            id2 = "%06d" % int(line[5:11])  # substring
-
-        except:
-            id2 = ""
-
-        lat = float(line[12:20])
-        lon = float(line[21:30])
-        alt = float(line[31:37])
-        state = line[38:40]
-        name = line[41:71]
-        start = int(line[72:76])
-        end = int(line[77:81])
-        count = int(line[82:88])
-        out.loc[i] = (id, id2, lat, lon, alt, state, name, start, end, count)
-
-    out.loc[out.lon <= -998.8, 'lon'] = np.nan  # repalce missing values
-    out.loc[out.alt <= -998.8, 'alt'] = np.nan  # repalce missing values
-    out.loc[out.lat <= -98.8, 'lat'] = np.nan  # replace missing values
-    out['name'] = out.name.str.strip()
-    out = out.set_index('id')
-    return out
-
-
-def uadb(ident, directory, email, pwd, **kwargs):
+def uadb(ident, directory, email, pwd, verbose=1, **kwargs):
     """ Download UADB TRHC Station from UCAR
 
     Args:
         ident (str): WMO ID
         directory (str): output directory
-
+        email (str): email adress for UCAR account
+        pwd (str): password for UCAR account
+        verbose (int): verboseness
     """
     import requests
     import os
@@ -146,12 +121,12 @@ def uadb(ident, directory, email, pwd, **kwargs):
     # Authenticate
     ret = requests.post(url, data=values)
     if ret.status_code != 200:
-        print('Bad Authentication')
-        print(ret.text)
+        message('Bad Authentication', verbose=verbose)
+        message(ret.text, verbose=verbose)
         exit(1)
 
     fileurl = "http://rda.ucar.edu/data/ds370.1/uadb_trhc_%s.txt" % ident
-    message(url, ' to ', directory + '/uadb_trhc_%s.txt' % ident, verbose=1)
+    message(url, ' to ', directory + '/uadb_trhc_%s.txt' % ident, verbose=verbose)
     try:
         req = requests.get(fileurl, cookies=ret.cookies, allow_redirects=True, stream=True)
         filesize = int(req.headers['Content-length'])
@@ -164,19 +139,29 @@ def uadb(ident, directory, email, pwd, **kwargs):
 
         _check_file_status(directory + '/uadb_trhc_%s.txt' % ident, filesize)
     except Exception as e:
-        print("Error: ", repr(e))
+        message("Error: ", repr(e), verbose=verbose)
         if kwargs.get('debug', False):
             raise e
         return
 
     if os.path.isfile(directory + '/uadb_trhc_%s.txt' % ident):
-        message("\nDownloaded: ", directory + '/uadb_trhc_%s.txt' % ident, verbose=1)
+        message("\nDownloaded: ", directory + '/uadb_trhc_%s.txt' % ident, verbose=verbose)
     else:
-        message("\nFile not found: ", directory + '/uadb_trhc_%s.txt' % ident, verbose=1)
+        message("\nFile not found: ", directory + '/uadb_trhc_%s.txt' % ident, verbose=verbose)
 
 
 def _check_file_status(filepath, filesize):
-    import sys, os
+    """ UCAR method to check if download was complete
+
+    Args:
+        filepath:
+        filesize:
+
+    Returns:
+
+    """
+    import sys
+    import os
     sys.stdout.write('\r')
     sys.stdout.flush()
     size = int(os.stat(filepath).st_size)
