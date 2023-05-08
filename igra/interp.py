@@ -48,7 +48,7 @@ def dataframe(data, level_column, levels=None, variables=None, keep_old_levels=T
     n = data.shape
     data = data.groupby('date').apply(table, level_column, levels)
     if not keep_old_levels:
-        data = data.drop('flag_int', 1)
+        data = data.drop('flag_int', axis=1)
 
     # Change multi-index
     data = data.reset_index().drop('level_1', axis=1).sort_values(by=['date', level_column]).set_index('date',
@@ -103,7 +103,10 @@ def table(data, level_column, levels):
         return data
     else:
         df['flag_int'] = 0
-        return df.reset_index().drop('date', 1)
+        # return df.reset_index().drop('date', 1)
+        # Pandas API change, 2023
+        return df.reset_index().drop('date', axis=1)
+    
 
 
 def profile(data, plevs, new_plevs):
