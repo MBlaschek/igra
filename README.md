@@ -5,11 +5,9 @@
 Author: M. Blaschek
 Date: Dezember 2019
 
-Version: 19.12
+Version: 23.05
 
 This Python 3 Module is intended to read IGRA v2 NCDC data to pandas DataFrames or Xarray Datasets (interpolated to standard pressure levels).
-
-[TOC]
 
 # Install
 
