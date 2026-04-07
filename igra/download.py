@@ -11,7 +11,7 @@ def station(ident, directory, server=None, verbose=1):
         verbose (int): verboseness
 
     """
-    import urllib
+    import urllib.request
     import os
     from .support import message
     os.makedirs(directory, exist_ok=True)
