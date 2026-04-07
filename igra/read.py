@@ -723,6 +723,10 @@ def stationlist(filename, verbose=1):
 
         except ValueError:
             id2 = ""
+            
+        # Skip line if it contains empty values
+        if not line[12:20].strip():
+            continue
 
         lat = float(line[12:20])
         lon = float(line[21:30])
