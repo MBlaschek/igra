@@ -1,12 +1,11 @@
 [![PyPI version](https://badge.fury.io/py/igra.svg)](https://badge.fury.io/py/igra)
-[![Documentation Status](https://readthedocs.org/projects/igra/badge/?version=latest)](https://igra.readthedocs.io/en/latest/?badge=latest)
 
 # IGRA
 
-Author: M. Blaschek
-Date: Dezember 2019
+    Author: M. Blaschek
+    Date: April 2026
 
-Version: 23.05
+Version: 26.04
 
 This Python 3 Module is intended to read IGRA v2 NCDC data to pandas DataFrames or Xarray Datasets (interpolated to standard pressure levels).
 
@@ -27,7 +26,7 @@ Download the Source code from GitHub
 git clone https://github.com/MBlaschek/igra
 ```
 
-or use the package on [PyPI igra](https://pypi.org/igra)
+or use the package on [PyPI igra](https://pypi.org/project/igra/)
 
 ```shell
 pip install igra
@@ -266,4 +265,4 @@ date
 
 MIT License
 
-Copyright (c) 2019 Michael Blaschek
+Copyright (c) 2026 Michael Blaschek

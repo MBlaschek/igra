@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='igra',
-    version='19.12',
+    version='26.04',
     description='IGRAv2 radiosonde tools',
     long_description=long_description,
     long_description_content_type="text/markdown",
